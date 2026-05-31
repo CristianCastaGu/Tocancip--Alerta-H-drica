@@ -1,0 +1,75 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  username  String     @unique
+  password  String
+  role      Role       @default(OPERADOR)
+  createdAt DateTime   @default(now())
+  alerts    Alert[]
+  auditLogs AuditLog[]
+}
+
+enum Role {
+  ADMIN
+  OPERADOR
+  VISOR
+}
+
+model Alert {
+  id          String     @id @default(cuid())
+  level       AlertLevel
+  triggeredBy String
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id])
+  message     String?
+  waStatus    String     @default("pending")
+  waMessageId String?
+  weatherData Json
+  createdAt   DateTime   @default(now())
+}
+
+enum AlertLevel {
+  INFORMATIVO
+  PREVENTIVO
+  ALERTA
+  EMERGENCIA
+}
+
+model Threshold {
+  id                  String   @id @default(cuid())
+  precipPreventivo    Float    @default(10)
+  precipAlerta        Float    @default(25)
+  precipEmergencia    Float    @default(50)
+  windPreventivo      Float    @default(40)
+  windAlerta          Float    @default(60)
+  windEmergencia      Float    @default(80)
+  humidityPreventivo  Float    @default(85)
+  evalIntervalMinutes Int      @default(15)
+  autoEnabled         Boolean  @default(false)
+  updatedAt           DateTime @updatedAt
+  updatedBy           String
+}
+
+model WeatherCache {
+  id        String   @id @default(cuid())
+  source    String
+  data      Json
+  fetchedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  detail    String?
+  createdAt DateTime @default(now())
+}

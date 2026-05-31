@@ -1,0 +1,190 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Tema oscuro (por defecto) ─── */
+:root {
+  --tw-bg:          #0f172a;
+  --tw-card:        #1e293b;
+  --tw-card-hover:  #253349;
+  --tw-primary:     #f1f5f9;
+  --tw-secondary:   #94a3b8;
+  --tw-accent:      #38bdf8;
+  --tw-elevated:    #1e293b;
+  --tw-border:      rgba(51, 65, 85, 0.6);
+  --tw-input-bg:    #0f172a;
+  --tw-input-border:#475569;
+  --tw-hover:       rgba(51, 65, 85, 0.5);
+  --tw-table-head:  rgba(15, 23, 42, 0.6);
+  --tw-table-row:   rgba(51, 65, 85, 0.2);
+  --tw-overlay:     rgba(0, 0, 0, 0.7);
+}
+
+/* ─── Tema claro ─── */
+.light {
+  --tw-bg:          #f1f5f9;
+  --tw-card:        #ffffff;
+  --tw-card-hover:  #f8fafc;
+  --tw-primary:     #0f172a;
+  --tw-secondary:   #475569;
+  --tw-accent:      #0284c7;
+  --tw-elevated:    #f8fafc;
+  --tw-border:      rgba(203, 213, 225, 0.8);
+  --tw-input-bg:    #ffffff;
+  --tw-input-border:#cbd5e1;
+  --tw-hover:       rgba(226, 232, 240, 0.7);
+  --tw-table-head:  rgba(241, 245, 249, 0.9);
+  --tw-table-row:   rgba(241, 245, 249, 0.5);
+  --tw-overlay:     rgba(0, 0, 0, 0.5);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-primary font-ui;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-card rounded-xl p-4;
+    border: 1px solid var(--tw-border);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+  }
+
+  .btn-primary {
+    @apply font-semibold px-4 py-2 rounded-lg transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: var(--tw-accent);
+    color: #0f172a;
+  }
+  .btn-primary:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+    background: transparent;
+    border: 1px solid var(--tw-input-border);
+    color: var(--tw-primary);
+  }
+  .btn-ghost:hover {
+    background: var(--tw-hover);
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200;
+    color: var(--tw-secondary);
+  }
+  .nav-link:hover {
+    color: var(--tw-primary);
+    background: var(--tw-hover);
+  }
+  .nav-link.active {
+    color: var(--tw-accent);
+    background: var(--tw-hover);
+  }
+
+  .input-field {
+    @apply w-full rounded-lg px-3 py-2.5 text-sm transition-colors;
+    background: var(--tw-input-bg);
+    border: 1px solid var(--tw-input-border);
+    color: var(--tw-primary);
+    outline: none;
+  }
+  .input-field::placeholder {
+    color: var(--tw-secondary);
+    opacity: 0.7;
+  }
+  .input-field:focus {
+    border-color: var(--tw-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tw-accent) 25%, transparent);
+  }
+
+  .select-field {
+    @apply w-full rounded-lg px-3 py-2 text-sm transition-colors;
+    background: var(--tw-input-bg);
+    border: 1px solid var(--tw-input-border);
+    color: var(--tw-primary);
+    outline: none;
+  }
+  .select-field:focus {
+    border-color: var(--tw-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--tw-accent) 25%, transparent);
+  }
+
+  .risk-badge {
+    @apply inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-semibold;
+  }
+
+  .metric-value {
+    @apply font-mono text-2xl font-semibold;
+    color: var(--tw-accent);
+  }
+
+  .table-header {
+    background: var(--tw-table-head);
+  }
+
+  .table-row {
+    border-top: 1px solid var(--tw-border);
+  }
+  .table-row:hover {
+    background: var(--tw-table-row);
+  }
+
+  .divider {
+    border-top: 1px solid var(--tw-border);
+  }
+
+  .sidebar-border-r {
+    border-right: 1px solid var(--tw-border);
+  }
+  .sidebar-border-b {
+    border-bottom: 1px solid var(--tw-border);
+  }
+}
+
+/* ─── Overrides de Leaflet para el tema ─── */
+.leaflet-container {
+  font-family: 'Inter', sans-serif;
+  background: var(--tw-bg) !important;
+}
+.leaflet-popup-content-wrapper {
+  background: var(--tw-card) !important;
+  color: var(--tw-primary) !important;
+  border: 1px solid var(--tw-border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3) !important;
+}
+.leaflet-popup-tip {
+  background: var(--tw-card) !important;
+}
+.leaflet-popup-close-button {
+  color: var(--tw-secondary) !important;
+}
+.leaflet-control-zoom a {
+  background: var(--tw-card) !important;
+  color: var(--tw-primary) !important;
+  border-color: var(--tw-border) !important;
+}
+.leaflet-control-zoom a:hover {
+  background: var(--tw-elevated) !important;
+}
+.leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.75) !important;
+  color: var(--tw-secondary) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a {
+  color: var(--tw-accent) !important;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--tw-bg); }
+::-webkit-scrollbar-thumb { background: var(--tw-input-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { opacity: 0.8; }
