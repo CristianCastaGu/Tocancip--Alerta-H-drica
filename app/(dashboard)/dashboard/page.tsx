@@ -29,7 +29,7 @@ const WeatherMap = dynamic(() => import('@/components/WeatherMap'), {
 });
 
 /* Umbrales según IDEAM (Protocolo de Colores) para Sabana de Bogotá ~2 585 m s.n.m. */
-export const DEFAULT_THRESHOLDS = {
+const DEFAULT_THRESHOLDS = {
   precipPreventivo: 15, precipAlerta: 30, precipEmergencia: 50,
   windPreventivo: 45,   windAlerta: 65,   windEmergencia: 90,
   humidityPreventivo: 85,
