@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Map, TileLayer, Marker } from 'leaflet';
 
-const TOCANCIPA: [number, number] = [4.9667, -73.9167];
+/* Coordenadas IGAC — casco urbano Tocancipá (Cundinamarca) */
+const TOCANCIPA: [number, number] = [4.9653, -73.9144];
 const OWM_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY ?? '';
 
 const LAYERS = [
@@ -71,7 +72,7 @@ export default function WeatherMap() {
             <strong style="font-size:13px">Tocancipá</strong>
             <hr style="margin:4px 0;border-color:#e2e8f0"/>
             <div style="font-size:11px;color:#475569">
-              Lat 4.9667° N &nbsp;|&nbsp; Lon 73.9167° O<br/>Altitud: 2 585 m
+              Lat 4.9653° N &nbsp;|&nbsp; Lon 73.9144° O<br/>Altitud: 2 585 m s.n.m.
             </div>
           </div>
         `);
