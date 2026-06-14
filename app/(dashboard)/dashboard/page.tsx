@@ -6,7 +6,9 @@ import { useSession } from 'next-auth/react';
 import { Thermometer, Droplets, Wind, Cloud, CloudRain, RefreshCw, Bell, Clock } from 'lucide-react';
 import WeatherCard from '@/components/WeatherCard';
 import RiskSemaphore from '@/components/RiskSemaphore';
+import RiskIndex from '@/components/RiskIndex';
 import ForecastChart from '@/components/ForecastChart';
+import HydrographChart from '@/components/HydrographChart';
 import ApiComparison from '@/components/ApiComparison';
 import AlertModal from '@/components/AlertModal';
 import ApiStatusBadge from '@/components/ApiStatusBadge';
@@ -17,10 +19,7 @@ import { evaluateRisk, LEVEL_LABELS, LEVEL_COLORS } from '@/lib/riskEngine';
 const WeatherMap = dynamic(() => import('@/components/WeatherMap'), {
   ssr: false,
   loading: () => (
-    <div
-      className="card flex items-center justify-center"
-      style={{ height: 510 }}
-    >
+    <div className="card flex items-center justify-center" style={{ height: 530 }}>
       <div className="text-center">
         <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
         <p className="text-sm" style={{ color: 'var(--tw-secondary)' }}>Cargando mapa...</p>
@@ -30,7 +29,7 @@ const WeatherMap = dynamic(() => import('@/components/WeatherMap'), {
 });
 
 /* Umbrales según IDEAM (Protocolo de Colores) para Sabana de Bogotá ~2 585 m s.n.m. */
-const DEFAULT_THRESHOLDS = {
+export const DEFAULT_THRESHOLDS = {
   precipPreventivo: 15, precipAlerta: 30, precipEmergencia: 50,
   windPreventivo: 45,   windAlerta: 65,   windEmergencia: 90,
   humidityPreventivo: 85,
@@ -45,11 +44,11 @@ function avg(sources: WeatherData[], key: keyof WeatherData): number {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [weather, setWeather] = useState<WeatherResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [weather, setWeather]       = useState<WeatherResponse | null>(null);
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen]   = useState(false);
   const [manualLevel, setManualLevel] = useState<AlertLevel | null>(null);
 
   const userRole = (session?.user as { role?: string })?.role ?? 'VISOR';
@@ -84,13 +83,15 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-primary">Panel de monitoreo</h1>
           <p className="text-sm flex items-center gap-1.5 mt-0.5" style={{ color: 'var(--tw-secondary)' }}>
             <Clock className="w-3.5 h-3.5" />
-            {lastUpdate ? `Actualizado: ${lastUpdate.toLocaleTimeString('es-CO')}` : 'Cargando datos...'}
+            {lastUpdate
+              ? `Actualizado: ${lastUpdate.toLocaleTimeString('es-CO')} · Comité Gestión de Riesgo Tocancipá`
+              : 'Cargando datos...'}
           </p>
         </div>
         <div className="flex gap-2">
@@ -117,7 +118,7 @@ export default function DashboardPage() {
         </div>
       ) : weather ? (
         <>
-          {/* Cards clima */}
+          {/* ── Condiciones actuales ── */}
           <section>
             <h2 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--tw-secondary)' }}>
               Condiciones actuales —{' '}
@@ -126,32 +127,35 @@ export default function DashboardPage() {
               </span>
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-              <WeatherCard label="Temperatura" value={avg(weather.current, 'temperature')} unit="°C" icon={Thermometer} color="#38bdf8" />
-              <WeatherCard label="Humedad" value={avg(weather.current, 'humidity')} unit="%" icon={Droplets} color="#22d3ee" />
-              <WeatherCard label="Precipitación" value={avg(weather.current, 'precipitation')} unit="mm" icon={CloudRain} color="#60a5fa" />
-              <WeatherCard label="Viento" value={avg(weather.current, 'windSpeed')} unit="km/h" icon={Wind} color="#a78bfa" />
-              <WeatherCard label="Prob. lluvia" value={avg(weather.current, 'rainProbability')} unit="%" icon={Cloud} color="#67e8f9" />
+              <WeatherCard label="Temperatura"  value={avg(weather.current, 'temperature')}    unit="°C"   icon={Thermometer} color="#38bdf8" />
+              <WeatherCard label="Humedad"       value={avg(weather.current, 'humidity')}       unit="%"    icon={Droplets}    color="#22d3ee" />
+              <WeatherCard label="Precipitación" value={avg(weather.current, 'precipitation')}  unit="mm/h" icon={CloudRain}   color="#60a5fa" />
+              <WeatherCard label="Viento"        value={avg(weather.current, 'windSpeed')}      unit="km/h" icon={Wind}        color="#a78bfa" />
+              <WeatherCard label="Prob. lluvia"  value={avg(weather.current, 'rainProbability')} unit="%"   icon={Cloud}       color="#67e8f9" />
             </div>
           </section>
 
-          {/* Semáforo + Estado APIs + Alertas manuales */}
+          {/* ── Semáforo + IRI + Estado APIs ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Semáforo */}
             <RiskSemaphore level={manualLevel ?? currentLevel} triggeredBy={manualLevel ? 'manual' : 'auto'} />
 
-            <div className="lg:col-span-2 flex flex-col gap-4">
-              <ApiStatusBadge apiStatus={weather.apiStatus} />
+            {/* IRI Compuesto */}
+            <RiskIndex sources={weather.current} thresholds={DEFAULT_THRESHOLDS} />
 
+            {/* APIs + Activación manual */}
+            <div className="flex flex-col gap-4">
+              <ApiStatusBadge apiStatus={weather.apiStatus} />
               {canAlert && (
                 <div className="card">
                   <h2 className="text-sm font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--tw-secondary)' }}>
                     Activación manual
                   </h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {ALERT_LEVELS.map((level) => (
                       <button key={level}
                         onClick={() => { setManualLevel(level); setModalOpen(true); }}
-                        className="py-3 px-2 rounded-lg text-sm font-bold border transition-all
-                                   hover:opacity-90 active:scale-95 min-h-[48px]"
+                        className="py-3 px-2 rounded-lg text-sm font-bold border transition-all hover:opacity-90 active:scale-95"
                         style={{
                           borderColor: LEVEL_COLORS[level],
                           color: LEVEL_COLORS[level],
@@ -166,13 +170,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Mapa interactivo de radar */}
+          {/* ── Mapa interactivo + capas GIS ── */}
           <WeatherMap />
 
-          {/* Pronóstico Recharts */}
+          {/* ── Hidrograma estimado ── */}
+          <HydrographChart hourly={weather.hourly} />
+
+          {/* ── Pronóstico meteorológico ── */}
           <ForecastChart hourly={weather.hourly} daily={weather.daily} />
 
-          {/* Comparación APIs */}
+          {/* ── Comparación entre APIs ── */}
           <ApiComparison sources={weather.current} />
         </>
       ) : (
