@@ -33,3 +33,6 @@ prisma/migrations/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Documentos locales
+CONTEXTO_PROYECTO.md
