@@ -3,10 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { MessageCircle, QrCode, RefreshCw, LogOut, Send, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { MessageCircle, QrCode, RefreshCw, LogOut, Send, Loader2, CheckCircle2, XCircle, Users, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type ConnState = 'open' | 'connecting' | 'close' | 'unknown';
+
+interface WhatsAppGroup {
+  id: string;
+  subject: string;
+  size?: number;
+}
 
 export default function WhatsAppPage() {
   const { data: session, status } = useSession();
@@ -21,6 +27,10 @@ export default function WhatsAppPage() {
   const [testNumber, setTestNumber] = useState('');
   const [testText, setTestText] = useState('Mensaje de prueba — Sistema TAH Tocancipá');
   const [sendingTest, setSendingTest] = useState(false);
+  const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
+  const [loadingGroups, setLoadingGroups] = useState(false);
+  const [groupsLoaded, setGroupsLoaded] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -92,6 +102,34 @@ export default function WhatsAppPage() {
       toast.error((err as Error).message);
     } finally {
       setDisconnecting(false);
+    }
+  }
+
+  async function handleLoadGroups() {
+    setLoadingGroups(true);
+    try {
+      const res = await fetch('/api/whatsapp/groups');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Error al obtener los grupos');
+      setGroups(data.groups ?? []);
+      setGroupsLoaded(true);
+      if ((data.groups ?? []).length === 0) {
+        toast('No se encontraron grupos para este número.');
+      }
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setLoadingGroups(false);
+    }
+  }
+
+  async function handleCopyId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
+    } catch {
+      toast.error('No se pudo copiar el ID');
     }
   }
 
@@ -209,18 +247,85 @@ export default function WhatsAppPage() {
         )}
       </div>
 
+      {/* Grupos de WhatsApp */}
+      {state === 'open' && (
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-primary text-sm flex items-center gap-2">
+              <Users className="w-4 h-4" style={{ color: 'var(--tw-secondary)' }} />
+              Grupos de WhatsApp
+            </h2>
+            <button
+              onClick={handleLoadGroups}
+              disabled={loadingGroups}
+              className="btn-ghost flex items-center gap-2 text-xs py-1.5 px-3 disabled:opacity-50"
+            >
+              {loadingGroups
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <RefreshCw className="w-3.5 h-3.5" />}
+              {groupsLoaded ? 'Actualizar' : 'Cargar grupos'}
+            </button>
+          </div>
+          <p className="text-xs" style={{ color: 'var(--tw-secondary)' }}>
+            Lista los grupos de los que este número hace parte, para copiar su ID y usarlo como
+            destinatario (en vez de un número individual) al enviar mensajes o alertas.
+          </p>
+
+          {groupsLoaded && groups.length === 0 && (
+            <p className="text-sm" style={{ color: 'var(--tw-secondary)' }}>
+              Este número no pertenece a ningún grupo todavía.
+            </p>
+          )}
+
+          {groups.length > 0 && (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {groups.map((group) => (
+                <div
+                  key={group.id}
+                  className="flex items-center justify-between gap-3 rounded-lg p-3"
+                  style={{ background: 'var(--tw-elevated)', border: '1px solid var(--tw-border)' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-primary truncate">{group.subject}</p>
+                    <p className="text-xs font-mono truncate" style={{ color: 'var(--tw-secondary)' }}>
+                      {group.id}{group.size ? ` · ${group.size} miembros` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleCopyId(group.id)}
+                      className="btn-ghost flex items-center gap-1.5 text-xs py-1.5 px-2.5"
+                    >
+                      {copiedId === group.id
+                        ? <><Check className="w-3.5 h-3.5 text-green-400" /> Copiado</>
+                        : <><Copy className="w-3.5 h-3.5" /> Copiar ID</>}
+                    </button>
+                    <button
+                      onClick={() => setTestNumber(group.id)}
+                      className="btn-primary text-xs py-1.5 px-2.5"
+                    >
+                      Usar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Mensaje de prueba */}
       <form onSubmit={handleSendTest} className="card space-y-4">
         <h2 className="font-semibold text-primary text-sm">Enviar mensaje de prueba</h2>
         <div>
           <label className="text-xs font-medium mb-1.5 block uppercase tracking-wide" style={{ color: 'var(--tw-secondary)' }}>
-            Número (formato internacional, sin +)
+            Número o ID de grupo
           </label>
           <input
             type="text"
             value={testNumber}
             onChange={(e) => setTestNumber(e.target.value)}
-            placeholder="573001234567"
+            placeholder="573001234567 o 120363047758479522@g.us"
             className="input-field"
             required
           />

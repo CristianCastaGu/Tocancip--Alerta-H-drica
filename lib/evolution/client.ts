@@ -152,6 +152,28 @@ export async function restartInstance(): Promise<{ ok: boolean; error?: string }
   return { ok: res.ok, error: res.error };
 }
 
+export interface WhatsAppGroup {
+  id: string;
+  subject: string;
+  size?: number;
+}
+
+/** Lista los grupos de WhatsApp de los que la instancia conectada es miembro. */
+export async function fetchGroups(): Promise<{ groups: WhatsAppGroup[]; error?: string }> {
+  const { instanceName } = getConfig();
+
+  const res = await evoFetch<Array<{ id: string; subject: string; size?: number }>>(
+    `/group/fetchAllGroups/${instanceName}?getParticipants=false`
+  );
+
+  if (!res.ok) {
+    return { groups: [], error: res.error ?? 'No fue posible obtener los grupos' };
+  }
+
+  const groups = (res.data ?? []).map((g) => ({ id: g.id, subject: g.subject, size: g.size }));
+  return { groups };
+}
+
 export interface SendTextResult {
   success: boolean;
   messageId?: string;
