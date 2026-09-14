@@ -6,13 +6,14 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   Droplets, LayoutDashboard, History, Settings, Shield,
-  LogOut, Menu, X, ChevronRight,
+  LogOut, Menu, X, ChevronRight, MessageCircle,
 } from 'lucide-react';
 import ThemeToggle from '@/components/ThemeToggle';
 
 const navItems = [
   { href: '/dashboard',      label: 'Dashboard',    icon: LayoutDashboard, roles: ['ADMIN', 'OPERADOR', 'VISOR'] },
   { href: '/historial',      label: 'Historial',    icon: History,         roles: ['ADMIN', 'OPERADOR', 'VISOR'] },
+  { href: '/whatsapp',       label: 'WhatsApp',     icon: MessageCircle,   roles: ['ADMIN'] },
   { href: '/configuracion',  label: 'Configuración',icon: Settings,        roles: ['ADMIN'] },
   { href: '/auditoria',      label: 'Auditoría',    icon: Shield,          roles: ['ADMIN'] },
 ];

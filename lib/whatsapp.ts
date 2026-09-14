@@ -1,5 +1,6 @@
 import { AlertLevel, WeatherData } from './types';
 import { LEVEL_LABELS } from './riskEngine';
+import { sendTextMessage } from './evolution/client';
 
 export interface WhatsAppResult {
   success: boolean;
@@ -50,12 +51,13 @@ export async function sendWhatsAppAlert(
   message: string,
   weather: Partial<WeatherData>
 ): Promise<WhatsAppResult> {
-  const token         = process.env.WHATSAPP_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const recipient     = process.env.WHATSAPP_RECIPIENT;
+  const recipients = (process.env.WHATSAPP_RECIPIENTS ?? '')
+    .split(',')
+    .map((n) => n.trim())
+    .filter(Boolean);
 
-  if (!token || !phoneNumberId || !recipient) {
-    return { success: false, error: 'Variables de entorno de WhatsApp no configuradas' };
+  if (recipients.length === 0) {
+    return { success: false, error: 'WHATSAPP_RECIPIENTS no está configurado' };
   }
 
   const now = new Date().toLocaleString('es-CO', {
@@ -81,30 +83,16 @@ export async function sendWhatsAppAlert(
     `_Sistema de Alerta Temprana Hídrica — Municipio de Tocancipá_`;
 
   try {
-    const response = await fetch(
-      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-      {
-        method:  'POST',
-        headers: {
-          Authorization:  `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to:   recipient,
-          type: 'text',
-          text: { body },
-        }),
-      }
+    const results = await Promise.all(
+      recipients.map((number) => sendTextMessage(number, body))
     );
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      return { success: false, error: data?.error?.message ?? 'Error desconocido de WhatsApp' };
+    const firstFailure = results.find((r) => !r.success);
+    if (firstFailure) {
+      return { success: false, error: firstFailure.error ?? 'Error desconocido de WhatsApp' };
     }
 
-    return { success: true, messageId: data?.messages?.[0]?.id };
+    return { success: true, messageId: results[0]?.messageId };
   } catch (err) {
     return { success: false, error: (err as Error).message };
   }
