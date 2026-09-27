@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { X, Send, AlertTriangle, Loader2 } from 'lucide-react';
 import { AlertLevel, WeatherData } from '@/lib/types';
 import { LEVEL_LABELS, LEVEL_COLORS, LEVEL_DESCRIPTIONS } from '@/lib/riskEngine';
+import { buildAlertMessage } from '@/lib/alertMessage';
 import toast from 'react-hot-toast';
 
 interface Props {
@@ -22,12 +23,7 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
 
   if (!isOpen) return null;
 
-  const previewText =
-    `${LEVEL_LABELS[selectedLevel].toUpperCase()} — TAH Tocancipá\n` +
-    `Precipitación: ${weatherData.precipitation?.toFixed(1) ?? 'N/D'} mm | ` +
-    `Humedad: ${weatherData.humidity?.toFixed(0) ?? 'N/D'}% | ` +
-    `Viento: ${weatherData.windSpeed?.toFixed(1) ?? 'N/D'} km/h\n` +
-    (message ? `Mensaje: ${message}` : 'Sin mensaje adicional.');
+  const previewText = buildAlertMessage(selectedLevel, message, weatherData);
 
   async function handleSend() {
     setSending(true);
@@ -167,7 +163,7 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
                 <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: 'var(--tw-secondary)' }}>
                   Preview mensaje WhatsApp
                 </p>
-                <pre className="text-xs font-mono whitespace-pre-wrap leading-relaxed text-primary">
+                <pre className="text-xs whitespace-pre-wrap leading-relaxed text-primary max-h-64 overflow-y-auto" style={{ fontFamily: 'inherit' }}>
                   {previewText}
                 </pre>
               </div>

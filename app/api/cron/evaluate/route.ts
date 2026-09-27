@@ -59,7 +59,7 @@ export async function POST() {
   }
 
   const avgWeather = weatherSources.filter((d) => d.available)[0] ?? weatherSources[0];
-  const waResult = await sendWhatsAppAlert(newLevel, 'Activación automática del sistema TAH', avgWeather);
+  const waResult = await sendWhatsAppAlert(newLevel, '', avgWeather);
 
   const alert = await prisma.alert.create({
     data: {
