@@ -19,7 +19,7 @@ const LEVELS: AlertLevel[] = ['INFORMATIVO', 'PREVENTIVO', 'ALERTA', 'EMERGENCIA
 // ← CAMBIO 1 (nuevo): imágenes que se muestran en el preview
 const LEVEL_PREVIEW_IMAGES: Partial<Record<AlertLevel, string>> = {
   INFORMATIVO: '/whatsapp/informativo.jpg',
-  PREVENTIVO: '/whatsapp/preventivo.jpg',
+  PREVENTIVO: '/whatsapp/preventivo.png',
 };
 
 export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: Props) {
