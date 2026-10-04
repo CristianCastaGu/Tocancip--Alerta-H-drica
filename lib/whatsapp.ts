@@ -1,6 +1,7 @@
 import { AlertLevel, WeatherData } from './types';
 import { buildAlertMessage } from './alertMessage';
-import { sendTextMessage } from './evolution/client';
+import { sendTextMessage, sendMediaMessage } from './evolution/client';   // ← CAMBIO 1
+import { loadLevelImage } from './whatsappImages';                        // ← CAMBIO 2 (línea nueva)
 
 export interface WhatsAppResult {
   success: boolean;
@@ -23,10 +24,16 @@ export async function sendWhatsAppAlert(
   }
 
   const body = buildAlertMessage(level, message, weather);
+  const image = await loadLevelImage(level);                              // ← CAMBIO 3 (línea nueva)
 
   try {
     const results = await Promise.all(
-      recipients.map((number) => sendTextMessage(number, body))
+      recipients.map(async (number) => {                                  // ← CAMBIO 4 (reemplaza el map de una línea)
+        if (!image) return sendTextMessage(number, body);
+        const withImage = await sendMediaMessage(number, body, image);
+        // Respaldo: si la imagen falla, que al menos llegue el texto
+        return withImage.success ? withImage : sendTextMessage(number, body);
+      })
     );
 
     const firstFailure = results.find((r) => !r.success);

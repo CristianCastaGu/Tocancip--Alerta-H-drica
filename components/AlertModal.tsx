@@ -16,6 +16,12 @@ interface Props {
 
 const LEVELS: AlertLevel[] = ['INFORMATIVO', 'PREVENTIVO', 'ALERTA', 'EMERGENCIA'];
 
+// ← CAMBIO 1 (nuevo): imágenes que se muestran en el preview
+const LEVEL_PREVIEW_IMAGES: Partial<Record<AlertLevel, string>> = {
+  INFORMATIVO: '/whatsapp/informativo.jpg',
+  PREVENTIVO: '/whatsapp/preventivo.jpg',
+};
+
 export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: Props) {
   const [selectedLevel, setSelectedLevel] = useState<AlertLevel>('PREVENTIVO');
   const [message, setMessage] = useState('');
@@ -163,6 +169,17 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
                 <p className="text-xs font-medium mb-2 uppercase tracking-wide" style={{ color: 'var(--tw-secondary)' }}>
                   Preview mensaje WhatsApp
                 </p>
+
+                {/* ← CAMBIO 2 (nuevo): imagen sobre el texto */}
+                {LEVEL_PREVIEW_IMAGES[selectedLevel] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={LEVEL_PREVIEW_IMAGES[selectedLevel]}
+                    alt={`Imagen del nivel ${LEVEL_LABELS[selectedLevel]}`}
+                    className="w-full rounded-lg mb-2 max-h-48 object-cover"
+                  />
+                )}
+
                 <pre className="text-xs whitespace-pre-wrap leading-relaxed text-primary max-h-64 overflow-y-auto" style={{ fontFamily: 'inherit' }}>
                   {previewText}
                 </pre>

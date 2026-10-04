@@ -198,3 +198,37 @@ export async function sendTextMessage(number: string, text: string): Promise<Sen
 
   return { success: true, messageId: res.data?.key?.id };
 }
+
+export async function sendMediaMessage(
+  number: string,
+  caption: string,
+  image: { base64: string; mimetype: string; fileName: string }
+) {
+  try {
+    const res = await fetch(
+      `${process.env.EVOLUTION_API_URL}/message/sendMedia/${process.env.EVOLUTION_INSTANCE}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: process.env.EVOLUTION_API_KEY!,
+        },
+        body: JSON.stringify({
+          number,
+          mediatype: 'image',
+          mimetype: image.mimetype,
+          caption,
+          media: image.base64,
+          fileName: image.fileName,
+        }),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data?.response?.message ?? 'Error al enviar imagen' };
+    }
+    return { success: true, messageId: data?.key?.id as string | undefined };
+  } catch (err) {
+    return { success: false, error: (err as Error).message };
+  }
+}
