@@ -47,8 +47,8 @@ function buildInformativo(weather: Partial<WeatherData>, date: string): string {
     `🟢 *Reporte del clima – Tocancipá*\n` +
     `${date}\n\n` +
     `Hola, vecinos 👋\n` +
-    `${status} y no hay riesgo de inundación en La Esmeralda.\n\n` +
-    `Un favor: si ven canales o desagües tapados cerca de su casa, cuéntennos por aquí. Seguimos pendientes.`
+    `${status} y no hay riesgo de inundación en este momento en La Esmeralda.\n\n` +
+    `Atención: si ven canales o desagües tapados cerca de su casa, cuéntennos por aquí. Seguimos pendientes.`
   );
 }
 
@@ -62,8 +62,8 @@ function buildPreventivo(weather: Partial<WeatherData>, date: string): string {
     `🟡 *Atentos, vecinos de La Esmeralda*\n` +
     `${date}\n\n` +
     `${status} No es para alarmarse, pero sí para estar preparados:\n\n` +
-    `• Tengan a mano documentos, medicamentos, linterna y cargador.\n` +
-    `• Suban a un lugar alto lo que no se puede mojar.\n` +
+    `• Tengan a mano el kit de emergencias y sus documentos personales.\n` +
+    `• Ubiquen en un lugar alto articulos de valor que no se puede mojar.\n` +
     `• Estén pendientes de la quebrada. Si la ven crecer, avisen por aquí.\n` +
     `• Piensen desde ya por dónde saldrían si toca evacuar.\n\n` +
     `Les vamos contando por este grupo.`
@@ -81,10 +81,10 @@ function buildAlerta(weather: Partial<WeatherData>, date: string): string {
     `${date}\n\n` +
     `${status}\n\n` +
     `*Si vive en zona baja o cerca de la quebrada, salga ahora hacia un lugar alto o a la casa de un familiar.* No espere a que el agua llegue.\n\n` +
-    `• Lleve solo lo básico: documentos, medicamentos y agua.\n` +
+    `• Lleve solo lo básico: documentos y el kit de emergencias\n` +
     `• Ayude a salir a adultos mayores, niños y personas con discapacidad.\n` +
     `• No cruce calles ni puentes con agua corriendo.\n` +
-    `• Si el agua se acerca a la casa, baje los tacos de la luz.\n\n` +
+    `• Si el agua se acerca a la casa, baje los tacos de la luz y quite el gas.\n\n` +
     `Defensa Civil y Bomberos ya están atentos.\n` +
     `📞 Emergencias: ${EMERGENCY_LINE}`
   );

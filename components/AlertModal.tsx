@@ -18,7 +18,7 @@ const LEVELS: AlertLevel[] = ['INFORMATIVO', 'PREVENTIVO', 'ALERTA', 'EMERGENCIA
 
 // ← CAMBIO 1 (nuevo): imágenes que se muestran en el preview
 const LEVEL_PREVIEW_IMAGES: Partial<Record<AlertLevel, string>> = {
-  INFORMATIVO: '/whatsapp/informativo.jpg',
+  INFORMATIVO: '/whatsapp/preventivo.png',
   PREVENTIVO: '/whatsapp/preventivo.png',
 };
 
