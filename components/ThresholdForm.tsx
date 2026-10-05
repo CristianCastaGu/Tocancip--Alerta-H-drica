@@ -56,7 +56,7 @@ export default function ThresholdForm({ initial, onSaved }: Props) {
       {/* Precipitación */}
       <div>
         <h3 className="text-xs uppercase tracking-wide font-medium mb-3" style={{ color: 'var(--tw-secondary)' }}>
-          Precipitación (mm)
+          Precipitación (mm/h)
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(['Preventivo', 'Alerta', 'Emergencia'] as const).map((lv) => {
@@ -128,7 +128,8 @@ export default function ThresholdForm({ initial, onSaved }: Props) {
         <div>
           <p className="text-sm font-medium text-primary">Agente automático</p>
           <p className="text-xs mt-0.5" style={{ color: 'var(--tw-secondary)' }}>
-            Evalúa las APIs cada {form.evalIntervalMinutes} minutos y envía alertas automáticamente.
+            Evalúa las 4 fuentes y envía la alerta por WhatsApp cuando el nivel sube. La frecuencia real
+            la define el programador que invoca /api/cron/evaluate (hoy: una vez al día en Vercel).
           </p>
         </div>
         <button type="button" onClick={() => setForm((prev) => ({ ...prev, autoEnabled: !prev.autoEnabled }))}

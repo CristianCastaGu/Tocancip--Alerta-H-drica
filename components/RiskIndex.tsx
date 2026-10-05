@@ -1,74 +1,22 @@
 'use client';
 
-import { WeatherData, Thresholds, AlertLevel } from '@/lib/types';
-import { LEVEL_COLORS, LEVEL_LABELS } from '@/lib/riskEngine';
+import { WeatherData, Thresholds, RainStats } from '@/lib/types';
+import { computeIRI, LEVEL_COLORS, LEVEL_LABELS } from '@/lib/riskEngine';
 
-interface Component {
-  label: string;
-  weight: number;
-  rawValue: number;
-  norm: number; // 0–1
-  unit: string;
-  color: string;
-}
-
-interface IRIResult {
-  iri: number;
-  level: AlertLevel;
-  components: Component[];
-}
-
-/* ─── Cálculo IRI (ISO 31000 — metodología ponderada) ─── */
-export function computeIRI(sources: WeatherData[], thresholds: Thresholds): IRIResult {
-  const available = sources.filter((s) => s.available);
-  if (!available.length) return { iri: 0, level: 'INFORMATIVO', components: [] };
-
-  const avg = (key: keyof WeatherData) =>
-    available.reduce((s, d) => s + (d[key] as number), 0) / available.length;
-
-  const precip   = avg('precipitation');
-  const humidity = avg('humidity');
-  const wind     = avg('windSpeed');
-  const rainProb = avg('rainProbability');
-
-  /* Normalización 0–1 por variable */
-  const pNorm  = Math.min(1, precip / thresholds.precipEmergencia);
-  /* Humedad crítica a partir de 70 % (suelo saturado) */
-  const hNorm  = Math.min(1, Math.max(0, (humidity - 70) / 30));
-  const vNorm  = Math.min(1, wind / thresholds.windEmergencia);
-  const llNorm = Math.min(1, rainProb / 100);
-
-  /* Pesos según literatura UNGRD / WMO-No.1199 */
-  const iri = Math.min(100, Math.round(
-    pNorm  * 35 +
-    hNorm  * 25 +
-    vNorm  * 20 +
-    llNorm * 20
-  ));
-
-  const level: AlertLevel =
-    iri >= 75 ? 'EMERGENCIA' :
-    iri >= 50 ? 'ALERTA'     :
-    iri >= 25 ? 'PREVENTIVO' : 'INFORMATIVO';
-
-  const components: Component[] = [
-    { label: 'Precipitación',    weight: 35, rawValue: precip,   norm: pNorm,  unit: 'mm/h', color: '#60a5fa' },
-    { label: 'Humedad relativa', weight: 25, rawValue: humidity, norm: hNorm,  unit: '%',    color: '#22d3ee' },
-    { label: 'Vel. viento',      weight: 20, rawValue: wind,     norm: vNorm,  unit: 'km/h', color: '#a78bfa' },
-    { label: 'Prob. de lluvia',  weight: 20, rawValue: rainProb, norm: llNorm, unit: '%',    color: '#34d399' },
-  ];
-
-  return { iri, level, components };
-}
-
-/* ─── Componente visual ─── */
 interface Props {
   sources: WeatherData[];
   thresholds: Thresholds;
+  rainStats?: RainStats | null;
 }
 
-export default function RiskIndex({ sources, thresholds }: Props) {
-  const { iri, level, components } = computeIRI(sources, thresholds);
+/* Un decimal, sin "+0.0" engañoso cuando el aporte es mínimo pero existe */
+function formatPoints(points: number): string {
+  if (points > 0 && points < 0.05) return '<0,1';
+  return points.toFixed(1).replace('.', ',');
+}
+
+export default function RiskIndex({ sources, thresholds, rainStats }: Props) {
+  const { iri, level, components } = computeIRI(sources, thresholds, rainStats);
   const color = LEVEL_COLORS[level];
 
   return (
@@ -80,7 +28,7 @@ export default function RiskIndex({ sources, thresholds }: Props) {
             Índice de Riesgo Compuesto (IRI)
           </h2>
           <p className="text-xs mt-0.5" style={{ color: 'var(--tw-secondary)', opacity: 0.7 }}>
-            Fórmula ponderada — ISO 31000 / UNGRD
+            Índice ponderado — marco ISO 31000
           </p>
         </div>
         {/* Score circular */}
@@ -125,17 +73,14 @@ export default function RiskIndex({ sources, thresholds }: Props) {
         <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--tw-secondary)' }}>
           Contribución por variable
         </p>
-        {components.map(({ label, weight, rawValue, norm, unit, color: c }) => (
-          <div key={label}>
-            <div className="flex justify-between items-center mb-0.5">
+        {components.map(({ key, label, weight, rawValue, norm, points, unit, color: c, hint }) => (
+          <div key={key} title={`Escala: ${hint}`}>
+            <div className="flex justify-between items-center gap-2 mb-0.5">
               <span className="text-xs text-primary">{label}</span>
-              <div className="flex items-center gap-2 text-xs font-mono">
+              <div className="flex items-center gap-2 text-xs font-mono whitespace-nowrap">
                 <span style={{ color: 'var(--tw-secondary)' }}>{rawValue.toFixed(1)} {unit}</span>
                 <span className="font-semibold" style={{ color: c }}>
-                  +{Math.round(norm * weight)} pts
-                </span>
-                <span style={{ color: 'var(--tw-secondary)', fontSize: 10 }}>
-                  (peso {weight}%)
+                  +{formatPoints(points)} de {Math.round(weight)}
                 </span>
               </div>
             </div>
@@ -151,8 +96,12 @@ export default function RiskIndex({ sources, thresholds }: Props) {
 
       {/* Nota metodológica */}
       <p className="text-[10px] mt-4 leading-relaxed" style={{ color: 'var(--tw-secondary)', opacity: 0.65 }}>
-        IRI = 0,35·Precipitación + 0,25·Humedad + 0,20·Viento + 0,20·Prob. lluvia.
-        Cada variable normalizada respecto a umbral de Emergencia (IDEAM).
+        Cada variable aporta de 0 a su peso máximo; la suma es el IRI.
+        {rainStats
+          ? ' La lluvia acumulada (72 h) estima la saturación del suelo.'
+          : ' Sin datos de lluvia acumulada: los pesos se reescalaron entre las variables disponibles.'}
+        {' '}La humedad puntúa entre 50 % y 95 %. Pesos de calibración inicial, pendientes de
+        validar con registros históricos locales.
       </p>
     </div>
   );

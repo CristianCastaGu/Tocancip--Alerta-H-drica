@@ -1,7 +1,8 @@
 import { WeatherData, HourlyForecast } from '../types';
+import { TOCANCIPA_LAT, TOCANCIPA_LON } from '../location';
 
-const LAT = 4.9667;
-const LON = -73.9167;
+const LAT = TOCANCIPA_LAT;
+const LON = TOCANCIPA_LON;
 
 export async function fetchOpenWeather(): Promise<{ current: WeatherData; hourly: HourlyForecast[] }> {
   const key = process.env.OPENWEATHER_API_KEY;
@@ -30,7 +31,8 @@ export async function fetchOpenWeather(): Promise<{ current: WeatherData; hourly
     humidity: c.main?.humidity ?? 0,
     precipitation: c.rain?.['1h'] ?? 0,
     windSpeed: (c.wind?.speed ?? 0) * 3.6,
-    rainProbability: (c.clouds?.all ?? 0),
+    /* 'pop' del primer bloque del pronóstico (próximas 3 h); la nubosidad no es probabilidad de lluvia */
+    rainProbability: (f.list?.[0]?.pop ?? 0) * 100,
     timestamp: new Date().toISOString(),
     available: true,
   };

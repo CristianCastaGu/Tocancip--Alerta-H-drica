@@ -7,21 +7,22 @@ import { Bot, User } from 'lucide-react';
 interface Props {
   level: AlertLevel;
   triggeredBy?: 'manual' | 'auto';
+  reason?: string;
   className?: string;
 }
 
 const LEVELS: AlertLevel[] = ['INFORMATIVO', 'PREVENTIVO', 'ALERTA', 'EMERGENCIA'];
 
-export default function RiskSemaphore({ level, triggeredBy = 'auto', className = '' }: Props) {
+export default function RiskSemaphore({ level, triggeredBy = 'auto', reason, className = '' }: Props) {
   const isEmergencia = level === 'EMERGENCIA';
 
   return (
     <div className={`card ${className}`}>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
+        <h2 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
           Nivel de Riesgo
         </h2>
-        <span className="flex items-center gap-1.5 text-xs text-slate-400">
+        <span className="flex items-center gap-1.5 text-xs text-text-secondary">
           {triggeredBy === 'manual' ? (
             <><User className="w-3 h-3" /> Manual</>
           ) : (
@@ -55,7 +56,7 @@ export default function RiskSemaphore({ level, triggeredBy = 'auto', className =
                   {LEVEL_LABELS[l]}
                 </p>
                 {isActive && (
-                  <p className="text-xs text-slate-400 mt-0.5 max-w-[200px]">
+                  <p className="text-xs text-text-secondary mt-0.5 max-w-[200px]">
                     {LEVEL_DESCRIPTIONS[l]}
                   </p>
                 )}
@@ -75,6 +76,9 @@ export default function RiskSemaphore({ level, triggeredBy = 'auto', className =
         }}
       >
         {LEVEL_LABELS[level].toUpperCase()}
+        {reason && (
+          <p className="text-[11px] font-normal mt-0.5" style={{ color: 'var(--tw-secondary)' }}>{reason}</p>
+        )}
       </div>
     </div>
   );

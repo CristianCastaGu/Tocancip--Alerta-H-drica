@@ -12,8 +12,8 @@ import HydrographChart from '@/components/HydrographChart';
 import ApiComparison from '@/components/ApiComparison';
 import AlertModal from '@/components/AlertModal';
 import ApiStatusBadge from '@/components/ApiStatusBadge';
-import { WeatherResponse, WeatherData, AlertLevel } from '@/lib/types';
-import { evaluateRisk, LEVEL_LABELS, LEVEL_COLORS } from '@/lib/riskEngine';
+import { WeatherResponse, WeatherData, AlertLevel, Thresholds } from '@/lib/types';
+import { assessRisk, consensus, DEFAULT_THRESHOLDS, LEVEL_LABELS, LEVEL_COLORS } from '@/lib/riskEngine';
 
 /* Leaflet requiere el DOM — carga solo en cliente */
 const WeatherMap = dynamic(() => import('@/components/WeatherMap'), {
@@ -27,13 +27,6 @@ const WeatherMap = dynamic(() => import('@/components/WeatherMap'), {
     </div>
   ),
 });
-
-/* Umbrales según IDEAM (Protocolo de Colores) para Sabana de Bogotá ~2 585 m s.n.m. */
-const DEFAULT_THRESHOLDS = {
-  precipPreventivo: 15, precipAlerta: 30, precipEmergencia: 50,
-  windPreventivo: 45,   windAlerta: 65,   windEmergencia: 90,
-  humidityPreventivo: 85,
-};
 
 const ALERT_LEVELS: AlertLevel[] = ['INFORMATIVO', 'PREVENTIVO', 'ALERTA', 'EMERGENCIA'];
 
@@ -50,6 +43,8 @@ export default function DashboardPage() {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [modalOpen, setModalOpen]   = useState(false);
   const [manualLevel, setManualLevel] = useState<AlertLevel | null>(null);
+  /* Umbrales vigentes de Configuración (BD): los mismos que usa el agente automático */
+  const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
 
   const userRole = (session?.user as { role?: string })?.role ?? 'VISOR';
   const canAlert = ['ADMIN', 'OPERADOR'].includes(userRole);
@@ -70,16 +65,25 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    fetch('/api/thresholds')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (data) setThresholds(data); })
+      .catch(() => { /* se mantienen los umbrales por defecto */ });
+  }, []);
+
+  useEffect(() => {
     fetchWeather();
     const id = setInterval(() => fetchWeather(true), 5 * 60 * 1000);
     return () => clearInterval(id);
   }, [fetchWeather]);
 
-  const currentLevel: AlertLevel = weather?.current
-    ? evaluateRisk(weather.current, DEFAULT_THRESHOLDS)
-    : 'INFORMATIVO';
+  const risk = weather?.current
+    ? assessRisk(weather.current, thresholds, weather.rainStats)
+    : null;
+  const currentLevel: AlertLevel = risk?.level ?? 'INFORMATIVO';
 
-  const representative = weather?.current?.find((s) => s.available) ?? null;
+  /* El mensaje de alerta usa el consenso de las fuentes, no una sola API */
+  const representative = weather?.current ? consensus(weather.current) : null;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -138,10 +142,11 @@ export default function DashboardPage() {
           {/* ── Semáforo + IRI + Estado APIs ── */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Semáforo */}
-            <RiskSemaphore level={manualLevel ?? currentLevel} triggeredBy={manualLevel ? 'manual' : 'auto'} />
+            <RiskSemaphore level={manualLevel ?? currentLevel} triggeredBy={manualLevel ? 'manual' : 'auto'}
+              reason={manualLevel ? undefined : risk?.reason} />
 
             {/* IRI Compuesto */}
-            <RiskIndex sources={weather.current} thresholds={DEFAULT_THRESHOLDS} />
+            <RiskIndex sources={weather.current} thresholds={thresholds} rainStats={weather.rainStats} />
 
             {/* APIs + Activación manual */}
             <div className="flex flex-col gap-4">
@@ -174,7 +179,7 @@ export default function DashboardPage() {
           <WeatherMap />
 
           {/* ── Hidrograma estimado ── */}
-          <HydrographChart hourly={weather.hourly} />
+          <HydrographChart hourly={weather.hourly} pastHourly={weather.pastHourly ?? []} />
 
           {/* ── Pronóstico meteorológico ── */}
           <ForecastChart hourly={weather.hourly} daily={weather.daily} />

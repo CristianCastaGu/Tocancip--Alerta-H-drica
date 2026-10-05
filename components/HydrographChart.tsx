@@ -1,47 +1,101 @@
 'use client';
 
 import {
-  ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid,
+  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ReferenceLine, ResponsiveContainer,
 } from 'recharts';
 import { HourlyForecast } from '@/lib/types';
 
 interface Props {
-  hourly: HourlyForecast[];
+  hourly: HourlyForecast[];      // desde la hora actual (pronóstico)
+  pastHourly?: HourlyForecast[]; // horas previas (lluvia ya caída)
 }
 
-/* ─── Modelo de tanque simple (WMO EWS) ─────────────────────────────────
-   Estima nivel relativo del agua a partir de precipitación acumulada.
-   Sin sensores IoT — aproximación hidrológica para cuenca Tocancipá.
+/* ─── Modelo lluvia–escorrentía ──────────────────────────────────────────
+   1. Escorrentía directa por el método SCS Curve Number (USDA NRCS, TR-55):
+        S  = 25400 / CN − 254        retención potencial máxima (mm)
+        Ia = 0,2 · S                 abstracción inicial (mm)
+        Q  = (P − Ia)² / (P + 0,8·S) escorrentía acumulada, si P > Ia
+      P es la lluvia acumulada del evento; el evento se reinicia tras
+      12 h continuas sin lluvia.
+   2. Tránsito por embalse lineal: Alm(t) = Alm(t−1)·(1 − k) + ΔQ(t)
+   3. Nivel relativo = nivel base + c · Alm
 
-   Nivel(t) = Nivel(t-1) + 0.04 * Precip(t) - 0.015
-   k_infiltración = 0.015 m/h  (suelo Sabana de Bogotá)
-   k_escorrentía  = 0.04  m/mm  (CN ≈ 75, SCS Curve Number)
+   CN, k y c son valores de partida SIN calibrar: no hay curva de gasto ni
+   sensor de nivel en el punto. El resultado es una tendencia, no una cota.
 ──────────────────────────────────────────────────────────────────────── */
-function simulateLevel(hourly: HourlyForecast[]): { time: string; nivel: number; precip: number; proyeccion: boolean }[] {
-  const points: { time: string; nivel: number; precip: number; proyeccion: boolean }[] = [];
-  let level = 0.05; // nivel base inicial (m)
-  const k_runoff = 0.04;
-  const k_drain  = 0.015;
-  const now = Date.now();
+const MODEL = {
+  cn: 75,              // suelo agrícola/pastos, condición de humedad media
+  recession: 0.08,     // k — fracción del almacenamiento que drena por hora
+  mPerMm: 0.06,        // c — metros de nivel por mm almacenado
+  baseLevel: 0.05,     // m
+  dryHoursReset: 12,
+  dryThreshold: 0.1,   // mm/h por debajo del cual la hora cuenta como seca
+};
 
-  for (const h of hourly.slice(0, 48)) {
-    level = Math.max(0, level + k_runoff * h.precipitation - k_drain);
-    level = Math.min(2.5, level);
+const PAST_HOURS_SHOWN = 24;
 
-    const t = new Date(h.time).getTime();
-    const label = new Date(h.time).toLocaleTimeString('es-CO', {
-      hour: '2-digit', minute: '2-digit', month: 'numeric', day: 'numeric',
-    });
+interface Point {
+  time: string;
+  nivel: number | null;       // tramo ya transcurrido
+  proyeccion: number | null;  // tramo pronosticado
+  precip: number;
+}
+
+function scsRunoff(p: number, s: number): number {
+  const ia = 0.2 * s;
+  return p > ia ? (p - ia) ** 2 / (p + 0.8 * s) : 0;
+}
+
+function formatLabel(time: string): string {
+  return new Date(time).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota', day: 'numeric', month: 'numeric', hour: '2-digit', hour12: false,
+  }) + ' h';
+}
+
+function simulate(past: HourlyForecast[], future: HourlyForecast[]): { points: Point[]; nowLabel: string | null; peak: number } {
+  const s = 25400 / MODEL.cn - 254;
+  const series = [...past, ...future.slice(0, 48)];
+  const firstShown = Math.max(0, past.length - PAST_HOURS_SHOWN);
+
+  let eventRain = 0;
+  let dryHours = 0;
+  let prevRunoff = 0;
+  let storage = 0;
+  let peak = 0;
+  const points: Point[] = [];
+
+  series.forEach((h, i) => {
+    if (h.precipitation < MODEL.dryThreshold) {
+      dryHours += 1;
+      if (dryHours >= MODEL.dryHoursReset) { eventRain = 0; prevRunoff = 0; }
+    } else {
+      dryHours = 0;
+    }
+    eventRain += h.precipitation;
+
+    const runoff = scsRunoff(eventRain, s);
+    storage = storage * (1 - MODEL.recession) + Math.max(0, runoff - prevRunoff);
+    prevRunoff = runoff;
+
+    if (i < firstShown) return; // las horas anteriores solo "calientan" el modelo
+
+    const level = Number(Math.min(3, MODEL.baseLevel + MODEL.mPerMm * storage).toFixed(3));
+    const isPast = i < past.length;
+    /* El último punto transcurrido también inicia la proyección, para que las líneas empalmen */
+    const joins = i === past.length - 1;
+    if (!isPast) peak = Math.max(peak, level);
 
     points.push({
-      time: label,
-      nivel: parseFloat(level.toFixed(3)),
-      precip: parseFloat(h.precipitation.toFixed(1)),
-      proyeccion: t > now,
+      time: formatLabel(h.time),
+      nivel: isPast ? level : null,
+      proyeccion: !isPast || joins ? level : null,
+      precip: Number(h.precipitation.toFixed(1)),
     });
-  }
-  return points;
+  });
+
+  const nowLabel = future.length ? formatLabel(future[0].time) : null;
+  return { points, nowLabel, peak };
 }
 
 const UMBRALES = [
@@ -50,24 +104,23 @@ const UMBRALES = [
   { value: 1.2, label: 'Emergencia', color: '#ef4444' },
 ];
 
+const AXIS_TICK = { fill: 'var(--tw-secondary)', fontSize: 10 };
+
 const TOOLTIP_STYLE = {
-  backgroundColor: '#1e293b',
-  border: '1px solid #334155',
+  backgroundColor: 'var(--tw-card)',
+  border: '1px solid var(--tw-border)',
   borderRadius: 8,
-  color: '#f1f5f9',
+  color: 'var(--tw-primary)',
   fontSize: 12,
 };
 
-export default function HydrographChart({ hourly }: Props) {
+export default function HydrographChart({ hourly, pastHourly = [] }: Props) {
   if (!hourly.length) return null;
 
-  const data = simulateLevel(hourly);
-  const maxLevel = Math.max(...data.map((d) => d.nivel));
-  const yMax = Math.max(1.5, maxLevel + 0.2);
-
-  /* Divide en histórico (sólido) y proyección (punteado) */
-  const idxNow = data.findIndex((d) => d.proyeccion);
-  const splitTime = idxNow > 0 ? data[idxNow].time : null;
+  const { points, nowLabel, peak } = simulate(pastHourly, hourly);
+  const maxLevel = Math.max(...points.map((d) => d.nivel ?? d.proyeccion ?? 0));
+  const yMax = Math.max(1.5, Math.ceil((maxLevel + 0.2) * 10) / 10);
+  const peakStage = [...UMBRALES].reverse().find((u) => peak >= u.value);
 
   return (
     <div className="card">
@@ -75,19 +128,23 @@ export default function HydrographChart({ hourly }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 mb-4">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'var(--tw-secondary)' }}>
-            Hidrograma estimado — Nivel del agua
+            Hidrograma estimado — Nivel relativo
           </h2>
           <p className="text-xs mt-0.5" style={{ color: 'var(--tw-secondary)', opacity: 0.7 }}>
-            Modelo SCS CN-75 · Cuenca Río Bogotá — Tocancipá · Proyección 48h
+            Método SCS-CN (CN {MODEL.cn}) + embalse lineal · {Math.min(pastHourly.length, PAST_HOURS_SHOWN)} h
+            observadas + {Math.min(hourly.length, 48)} h de pronóstico
+          </p>
+          <p className="text-xs mt-1 font-medium" style={{ color: peakStage?.color ?? '#22c55e' }}>
+            Pico proyectado: {peak.toFixed(2)} m{peakStage ? ` — supera ${peakStage.label}` : ' — bajo el nivel de aviso'}
           </p>
         </div>
-        {/* Estado actual */}
+        {/* Umbrales */}
         <div className="flex gap-2">
           {UMBRALES.map((u) => (
             <div key={u.label} className="text-center px-2 py-1 rounded-lg"
               style={{ background: `${u.color}15`, border: `1px solid ${u.color}40` }}>
               <p className="text-[10px] font-medium" style={{ color: u.color }}>{u.label}</p>
-              <p className="text-xs font-mono font-semibold" style={{ color: u.color }}>{u.value}m</p>
+              <p className="text-xs font-mono font-semibold" style={{ color: u.color }}>{u.value} m</p>
             </div>
           ))}
         </div>
@@ -95,35 +152,27 @@ export default function HydrographChart({ hourly }: Props) {
 
       <div className="w-full" style={{ height: 260 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <ComposedChart data={points} margin={{ top: 12, right: 10, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--tw-border)" />
             <XAxis
               dataKey="time"
-              tick={{ fill: '#94a3b8', fontSize: 9 }}
-              interval={Math.floor(data.length / 8)}
+              tick={{ ...AXIS_TICK, fontSize: 9 }}
+              interval={Math.max(0, Math.floor(points.length / 9))}
             />
-            <YAxis
-              yAxisId="nivel"
-              domain={[0, yMax]}
-              tick={{ fill: '#94a3b8', fontSize: 10 }}
-              unit="m"
-              width={42}
-            />
-            <YAxis
-              yAxisId="precip"
-              orientation="right"
-              tick={{ fill: '#94a3b8', fontSize: 10 }}
-              unit="mm"
-              width={38}
-            />
-            <Tooltip contentStyle={TOOLTIP_STYLE}
+            <YAxis yAxisId="nivel" domain={[0, yMax]} tick={AXIS_TICK} unit=" m" width={46} />
+            <YAxis yAxisId="precip" orientation="right" tick={AXIS_TICK} unit=" mm" width={44} />
+            <Tooltip
+              contentStyle={TOOLTIP_STYLE}
               formatter={(v: number, name: string) =>
-                name === 'Nivel (m)' ? [`${v.toFixed(3)} m`, name] : [`${v} mm/h`, name]
+                name.startsWith('Lluvia') ? [`${v} mm/h`, name] : [`${v.toFixed(2)} m`, name]
               }
             />
-            <Legend wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+            <Legend wrapperStyle={{ fontSize: 11, color: 'var(--tw-secondary)' }} />
 
-            {/* Umbrales de cota */}
+            {/* Lluvia horaria (eje derecho) */}
+            <Bar yAxisId="precip" dataKey="precip" name="Lluvia (mm/h)" fill="#38bdf8" fillOpacity={0.35} isAnimationActive={false} />
+
+            {/* Umbrales de nivel */}
             {UMBRALES.map((u) => (
               <ReferenceLine
                 key={u.label}
@@ -136,61 +185,31 @@ export default function HydrographChart({ hourly }: Props) {
               />
             ))}
 
-            {/* Línea de separación histórico/proyección */}
-            {splitTime && (
+            {/* Separación observado / pronóstico */}
+            {nowLabel && (
               <ReferenceLine
                 yAxisId="nivel"
-                x={splitTime}
-                stroke="#475569"
+                x={nowLabel}
+                stroke="var(--tw-secondary)"
                 strokeDasharray="3 3"
-                label={{ value: 'Ahora', fill: '#475569', fontSize: 9, position: 'top' }}
+                label={{ value: 'Ahora', fill: 'var(--tw-secondary)', fontSize: 9, position: 'top' }}
               />
             )}
 
-            {/* Área de precipitación (eje derecho) */}
-            <Area
-              yAxisId="precip"
-              type="monotone"
-              dataKey="precip"
-              name="Precipitación (mm/h)"
-              fill="#38bdf820"
-              stroke="#38bdf860"
-              strokeWidth={1}
-            />
-
-            {/* Nivel histórico (sólido) */}
-            <Line
-              yAxisId="nivel"
-              type="monotone"
-              dataKey={(d) => (!d.proyeccion ? d.nivel : undefined)}
-              name="Nivel (m)"
-              stroke="#06b6d4"
-              strokeWidth={2.5}
-              dot={false}
-              connectNulls={false}
-            />
-
-            {/* Nivel proyectado (punteado) */}
-            <Line
-              yAxisId="nivel"
-              type="monotone"
-              dataKey={(d) => (d.proyeccion ? d.nivel : undefined)}
-              name="Proyección (m)"
-              stroke="#06b6d4"
-              strokeWidth={2}
-              strokeDasharray="6 3"
-              dot={false}
-              connectNulls={false}
-            />
+            <Line yAxisId="nivel" type="monotone" dataKey="nivel" name="Nivel con lluvia registrada (m)"
+              stroke="#06b6d4" strokeWidth={2.5} dot={false} connectNulls={false} isAnimationActive={false} />
+            <Line yAxisId="nivel" type="monotone" dataKey="proyeccion" name="Proyección (m)"
+              stroke="#06b6d4" strokeWidth={2} strokeDasharray="6 3" dot={false} connectNulls={false} isAnimationActive={false} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
 
       {/* Nota técnica */}
-      <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--tw-secondary)', opacity: 0.6 }}>
-        ⚠️ Estimación preliminar sin sensores IoT. Basada en modelo SCS Curve Number (CN 75)
-        para la cuenca del Río Bogotá en Tocancipá. Reemplazar con datos hidrométricos reales
-        (IDEAM o sensores de nivel) cuando estén disponibles.
+      <p className="text-[10px] mt-3 leading-relaxed" style={{ color: 'var(--tw-secondary)', opacity: 0.75 }}>
+        ⚠️ Estimación de tendencia, no una medición. No hay sensor de nivel ni curva de gasto en el punto:
+        los parámetros (CN {MODEL.cn}, recesión {MODEL.recession}/h, {MODEL.mPerMm} m por mm) y los niveles de
+        Aviso/Alarma/Emergencia son valores de partida sin calibrar. No usar como único criterio para evacuar;
+        confirmar siempre con observación en campo y boletines del IDEAM.
       </p>
     </div>
   );

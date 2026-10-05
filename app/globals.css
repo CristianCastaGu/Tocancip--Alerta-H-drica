@@ -188,3 +188,27 @@
 ::-webkit-scrollbar-track { background: var(--tw-bg); }
 ::-webkit-scrollbar-thumb { background: var(--tw-input-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { opacity: 0.8; }
+
+/* ─── Marcadores y rótulos del mapa de riesgo ─── */
+.tah-pin {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  font: 700 12px/22px 'Inter', sans-serif;
+  text-align: center;
+}
+.leaflet-tooltip.tah-map-label {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.25);
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  color: #0f172a;
+  font: 600 11px/1.2 'Inter', sans-serif;
+  padding: 2px 6px;
+}
+.leaflet-tooltip.tah-map-label::before {
+  display: none;
+}

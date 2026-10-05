@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { DEFAULT_THRESHOLDS } from '../lib/riskEngine';
 
 const prisma = new PrismaClient();
 
@@ -24,13 +25,7 @@ async function main() {
     update: {},
     create: {
       id: 'default',
-      precipPreventivo: 10,
-      precipAlerta: 25,
-      precipEmergencia: 50,
-      windPreventivo: 40,
-      windAlerta: 60,
-      windEmergencia: 80,
-      humidityPreventivo: 85,
+      ...DEFAULT_THRESHOLDS,
       evalIntervalMinutes: 15,
       autoEnabled: false,
       updatedBy: 'seed',

@@ -37,9 +37,20 @@ export interface DailyForecast {
   precipSum: number;
 }
 
+/* Lluvia acumulada (mm) alrededor del momento actual — fuente Open-Meteo */
+export interface RainStats {
+  past24h: number;
+  past72h: number;
+  next6h: number;
+  next24h: number;
+  maxProbNext6h: number; // %
+}
+
 export interface WeatherResponse {
   current: WeatherData[];
-  hourly: HourlyForecast[];
+  hourly: HourlyForecast[];       // desde la hora actual, hasta 48 h
+  pastHourly?: HourlyForecast[];  // 72 h previas a la hora actual
+  rainStats?: RainStats | null;
   daily: DailyForecast[];
   apiStatus: Record<WeatherSource, { ok: boolean; lastSuccess: string | null }>;
 }
