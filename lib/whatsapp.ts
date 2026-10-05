@@ -31,8 +31,10 @@ export async function sendWhatsAppAlert(
       recipients.map(async (number) => {                                  // ← CAMBIO 4 (reemplaza el map de una línea)
         if (!image) return sendTextMessage(number, body);
         const withImage = await sendMediaMessage(number, body, image);
+        if (withImage.success) return withImage;
         // Respaldo: si la imagen falla, que al menos llegue el texto
-        return withImage.success ? withImage : sendTextMessage(number, body);
+        console.error(`[whatsapp] Falló el envío con imagen a ${number}: ${withImage.error}`);
+        return sendTextMessage(number, body);
       })
     );
 

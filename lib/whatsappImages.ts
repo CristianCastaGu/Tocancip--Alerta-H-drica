@@ -4,9 +4,10 @@ import { AlertLevel } from './types';
 
 const IMAGE_DIR = path.join(process.cwd(), 'public', 'whatsapp');
 
-// Solo INFORMATIVO lleva imagen por ahora; agrega más niveles cuando quieras
+// Debe coincidir con LEVEL_PREVIEW_IMAGES de components/AlertModal.tsx
 const LEVEL_IMAGES: Partial<Record<AlertLevel, string>> = {
   INFORMATIVO: 'preventivo.png',
+  PREVENTIVO: 'preventivo.png',
 };
 
 const MIME: Record<string, string> = {
@@ -32,7 +33,8 @@ export async function loadLevelImage(level: AlertLevel): Promise<AlertImage | nu
       mimetype: MIME[path.extname(file).toLowerCase()] ?? 'image/jpeg',
       fileName: file,
     };
-  } catch {
+  } catch (err) {
+    console.error(`[whatsapp] No se pudo leer la imagen ${file}: ${(err as Error).message}`);
     return null; // si la imagen falla, se envía solo el texto
   }
 }
