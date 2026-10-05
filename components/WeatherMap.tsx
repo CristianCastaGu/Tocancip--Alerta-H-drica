@@ -52,7 +52,7 @@ const LEGENDS: Record<LayerId, [string, string][]> = {
    (IGAC, CAR, PMGRD) basta reemplazar esos archivos conservando la propiedad
    "kind" de cada elemento; no hay que tocar este componente. */
 const GIS_LAYERS = [
-  { id: 'flood',      label: 'Zona inundación',  color: '#2563eb', file: '/gis/zona-inundacion.geojson',  legend: 'Franja inundable de referencia (Río Bogotá)' },
+  { id: 'flood',      label: 'Zona inundación',  color: '#2563eb', file: '/gis/zona-inundacion.geojson',  legend: 'Franjas inundables de referencia: Río Bogotá y Quebrada La Esmeralda (punteado: tramo estimado)' },
   { id: 'esmeralda',  label: 'Vereda Esmeralda', color: '#ea580c', file: '/gis/vereda-esmeralda.geojson', legend: 'La Esmeralda — población a alertar' },
   { id: 'evacuation', label: 'Ruta evacuación',  color: '#16a34a', file: '/gis/ruta-evacuacion.geojson',  legend: 'Ruta de evacuación de referencia' },
 ] as const;
@@ -151,7 +151,7 @@ export default function WeatherMap() {
         const group = L.layerGroup();
 
         /* Borde blanco bajo las líneas para que se lean sobre cualquier mapa base */
-        const lines = data.features.filter((f) => f.geometry.type === 'LineString');
+        const lines = data.features.filter((f) => f.geometry.type === 'LineString' && f.properties?.kind !== 'stream-est');
         if (lines.length) {
           L.geoJSON(lines, { style: { color: '#ffffff', weight: 9, opacity: 0.9 }, interactive: false }).addTo(group);
         }
@@ -160,6 +160,9 @@ export default function WeatherMap() {
           style: (feature) => {
             const kind = feature?.properties?.kind;
             if (kind === 'river') return { color: '#1d4ed8', weight: 4, opacity: 1 };
+            if (kind === 'stream') return { color: '#0891b2', weight: 5, opacity: 1 };
+            /* Tramo sin levantar: punteado para que no se lea como cauce confirmado */
+            if (kind === 'stream-est') return { color: '#0891b2', weight: 3, opacity: 1, dashArray: '4 8' };
             if (kind === 'route') return { color: g.color, weight: 5, opacity: 1 };
             return {
               color: g.color, weight: 2.5, opacity: 1,
@@ -177,6 +180,7 @@ export default function WeatherMap() {
             const kind = feature.properties?.kind;
             const label =
               kind === 'river' ? 'Río Bogotá'
+              : kind === 'stream' ? 'Quebrada La Esmeralda'
               : kind === 'place' ? 'La Esmeralda'
               : kind === 'start' ? 'Salida'
               : kind === 'end' ? 'Punto de encuentro'
@@ -184,8 +188,8 @@ export default function WeatherMap() {
             if (label) {
               lyr.bindTooltip(label, {
                 permanent: true,
-                direction: kind === 'river' ? 'center' : kind === 'place' ? 'left' : kind === 'end' ? 'bottom' : 'right',
-                offset: kind === 'river' ? [0, 0] : kind === 'place' ? [-14, 0] : kind === 'end' ? [0, 14] : [14, 0],
+                direction: kind === 'river' ? 'center' : kind === 'stream' ? 'bottom' : kind === 'place' ? 'left' : kind === 'end' ? 'bottom' : 'right',
+                offset: kind === 'river' ? [0, 0] : kind === 'stream' ? [0, 10] : kind === 'place' ? [-14, 0] : kind === 'end' ? [0, 14] : [14, 0],
                 className: 'tah-map-label',
               });
             }
