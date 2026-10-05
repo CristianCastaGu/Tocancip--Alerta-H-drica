@@ -63,7 +63,7 @@ function buildPreventivo(weather: Partial<WeatherData>, date: string): string {
     `${date}\n\n` +
     `${status} No es para alarmarse, pero sí para estar preparados:\n\n` +
     `• Tengan a mano el kit de emergencias y sus documentos personales.\n` +
-    `• Ubiquen en un lugar alto articulos de valor que no se puede mojar.\n` +
+    `• Ubiquen en un lugar alto artículos de valor que no se puedan mojar.\n` +
     `• Estén pendientes de la quebrada. Si la ven crecer, avisen por aquí.\n` +
     `• Piensen desde ya por dónde saldrían si toca evacuar.\n\n` +
     `Les vamos contando por este grupo.`
