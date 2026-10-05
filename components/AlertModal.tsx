@@ -26,10 +26,13 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
   const [selectedLevel, setSelectedLevel] = useState<AlertLevel>('PREVENTIVO');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [includeImage, setIncludeImage] = useState(true);
 
   if (!isOpen) return null;
 
   const previewText = buildAlertMessage(selectedLevel, message, weatherData);
+  const levelImage = LEVEL_PREVIEW_IMAGES[selectedLevel];
+  const sendImage = !!levelImage && includeImage;
 
   async function handleSend() {
     setSending(true);
@@ -37,7 +40,7 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
       const res = await fetch('/api/alerts/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ level: selectedLevel, message, weatherData }),
+        body: JSON.stringify({ level: selectedLevel, message, weatherData, includeImage: sendImage }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al enviar alerta');
@@ -161,6 +164,35 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
                 </p>
               </div>
 
+              {/* Enviar imagen — solo en niveles que tienen imagen (Informativo / Preventivo) */}
+              {levelImage && (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg p-3"
+                  style={{ background: 'var(--tw-elevated)', border: '1px solid var(--tw-border)' }}
+                >
+                  <div>
+                    <p className="text-sm font-medium text-primary">Enviar imagen con el mensaje</p>
+                    <p className="text-xs" style={{ color: 'var(--tw-secondary)' }}>
+                      {includeImage ? 'Se enviará la imagen con el texto como pie.' : 'Se enviará solo el texto.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={includeImage}
+                    aria-label="Enviar imagen con el mensaje"
+                    onClick={() => setIncludeImage((v) => !v)}
+                    className="relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors"
+                    style={{ background: includeImage ? LEVEL_COLORS[selectedLevel] : 'var(--tw-border)' }}
+                  >
+                    <span
+                      className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
+                      style={{ transform: includeImage ? 'translateX(24px)' : 'translateX(4px)' }}
+                    />
+                  </button>
+                </div>
+              )}
+
               {/* Preview WhatsApp */}
               <div
                 className="rounded-lg p-3"
@@ -171,10 +203,10 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
                 </p>
 
                 {/* ← CAMBIO 2 (nuevo): imagen sobre el texto */}
-                {LEVEL_PREVIEW_IMAGES[selectedLevel] && (
+                {sendImage && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={LEVEL_PREVIEW_IMAGES[selectedLevel]}
+                    src={levelImage}
                     alt={`Imagen del nivel ${LEVEL_LABELS[selectedLevel]}`}
                     className="w-full rounded-lg mb-2 max-h-48 object-cover"
                   />

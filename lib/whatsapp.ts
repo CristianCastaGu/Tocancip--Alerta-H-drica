@@ -12,7 +12,8 @@ export interface WhatsAppResult {
 export async function sendWhatsAppAlert(
   level: AlertLevel,
   message: string,
-  weather: Partial<WeatherData>
+  weather: Partial<WeatherData>,
+  options: { includeImage?: boolean } = {}
 ): Promise<WhatsAppResult> {
   const recipients = (process.env.WHATSAPP_RECIPIENTS ?? '')
     .split(',')
@@ -24,7 +25,8 @@ export async function sendWhatsAppAlert(
   }
 
   const body = buildAlertMessage(level, message, weather);
-  const image = await loadLevelImage(level);                              // ← CAMBIO 3 (línea nueva)
+  // loadLevelImage devuelve null para los niveles sin imagen (ALERTA/EMERGENCIA)
+  const image = options.includeImage === false ? null : await loadLevelImage(level);
 
   try {
     const results = await Promise.all(

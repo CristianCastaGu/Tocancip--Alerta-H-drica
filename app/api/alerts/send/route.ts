@@ -15,15 +15,18 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { level, message, weatherData } = body as {
+  const { level, message, weatherData, includeImage } = body as {
     level: AlertLevel;
     message?: string;
     weatherData: Partial<WeatherData>;
+    includeImage?: boolean;
   };
 
   if (!level) return NextResponse.json({ error: 'Nivel de alerta requerido' }, { status: 400 });
 
-  const waResult = await sendWhatsAppAlert(level, message ?? '', weatherData);
+  const waResult = await sendWhatsAppAlert(level, message ?? '', weatherData, {
+    includeImage: includeImage !== false,
+  });
 
   const dbUser = await prisma.user.findUnique({ where: { username: user.name ?? '' } });
 
