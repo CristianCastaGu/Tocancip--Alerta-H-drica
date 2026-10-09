@@ -25,8 +25,10 @@ export async function fetchOpenMeteo(): Promise<OpenMeteoResult> {
     forecast_days: '7',
   });
 
+  /* Sin caché de Next: su caché sirve primero el dato viejo y revalida después, y una
+     alerta no puede evaluarse con datos de hace horas. La caché de 10 min vive en la BD. */
   const response = await fetch(`${BASE_URL}?${params}`, {
-    next: { revalidate: 600 },
+    cache: 'no-store',
   });
 
   if (!response.ok) throw new Error(`Open-Meteo HTTP ${response.status}`);

@@ -3,7 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { sendWhatsAppAlert } from '@/lib/whatsapp';
 import prisma from '@/lib/prisma';
-import { AlertLevel, WeatherData } from '@/lib/types';
+import { AlertLevel, Thresholds, WeatherData } from '@/lib/types';
+import { collectWeather } from '@/lib/weather/collect';
+import { buildSnapshot } from '@/lib/alertSnapshot';
+import { DEFAULT_THRESHOLDS, LEVEL_ORDER } from '@/lib/riskEngine';
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -22,7 +25,23 @@ export async function POST(req: NextRequest) {
     includeImage?: boolean;
   };
 
-  if (!level) return NextResponse.json({ error: 'Nivel de alerta requerido' }, { status: 400 });
+  if (!level || !(level in LEVEL_ORDER)) {
+    return NextResponse.json({ error: 'Nivel de alerta requerido' }, { status: 400 });
+  }
+
+  /* Fotografía completa de las condiciones (fuentes, IRI, umbrales vigentes) para el
+     historial. Se toma en el servidor; si falla, se guarda lo que envió el cliente. */
+  const snapshot = await (async () => {
+    try {
+      const [weather, threshold] = await Promise.all([
+        collectWeather(),
+        prisma.threshold.findFirst({ orderBy: { updatedAt: 'desc' } }),
+      ]);
+      return buildSnapshot(weather, (threshold as Thresholds | null) ?? DEFAULT_THRESHOLDS);
+    } catch {
+      return null;
+    }
+  })();
 
   const waResult = await sendWhatsAppAlert(level, message ?? '', weatherData, {
     includeImage: includeImage !== false,
@@ -38,7 +57,10 @@ export async function POST(req: NextRequest) {
       message: message ?? null,
       waStatus: waResult.success ? 'sent' : 'failed',
       waMessageId: waResult.messageId ?? null,
-      weatherData: weatherData as object,
+      weatherData: {
+        ...(snapshot ?? weatherData),
+        ...(waResult.success ? {} : { waError: waResult.error ?? 'Error desconocido' }),
+      } as object,
     },
   });
 
@@ -47,7 +69,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: dbUser.id,
         action: 'ALERT_MANUAL',
-        detail: `Nivel ${level} activado manualmente. WhatsApp: ${waResult.success ? 'OK' : 'FALLÓ'}`,
+        detail: `Nivel ${level} activado manualmente. WhatsApp: ${waResult.success ? 'OK' : `FALLÓ (${waResult.error ?? 'sin detalle'})`}`,
       },
     });
   }

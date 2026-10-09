@@ -6,6 +6,7 @@ const nextConfig = {
   outputFileTracingIncludes: {
     '/api/alerts/send': ['./public/whatsapp/**/*'],
     '/api/cron/evaluate': ['./public/whatsapp/**/*'],
+    '/api/alerts/[id]/resend': ['./public/whatsapp/**/*'],
   },
   images: {
     remotePatterns: [],

@@ -7,7 +7,7 @@ export async function fetchWeatherAPI(): Promise<{ current: WeatherData; daily: 
 
   const response = await fetch(
     `https://api.weatherapi.com/v1/forecast.json?key=${key}&q=${TOCANCIPA_LAT},${TOCANCIPA_LON}&days=7&lang=es`,
-    { next: { revalidate: 600 } }
+    { cache: 'no-store' }
   );
 
   if (!response.ok) throw new Error(`WeatherAPI HTTP ${response.status}`);

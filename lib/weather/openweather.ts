@@ -11,11 +11,11 @@ export async function fetchOpenWeather(): Promise<{ current: WeatherData; hourly
   const [currentRes, forecastRes] = await Promise.all([
     fetch(
       `https://api.openweathermap.org/data/2.5/weather?lat=${LAT}&lon=${LON}&appid=${key}&units=metric&lang=es`,
-      { next: { revalidate: 600 } }
+      { cache: 'no-store' }
     ),
     fetch(
       `https://api.openweathermap.org/data/2.5/forecast?lat=${LAT}&lon=${LON}&appid=${key}&units=metric&lang=es`,
-      { next: { revalidate: 600 } }
+      { cache: 'no-store' }
     ),
   ]);
 

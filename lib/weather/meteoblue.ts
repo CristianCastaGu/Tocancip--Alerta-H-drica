@@ -20,7 +20,7 @@ export async function fetchMeteoblue(): Promise<MeteoblueResult> {
     `?apikey=${key}&lat=${LAT}&lon=${LON}&asl=${ASL}` +
     `&format=json&tz=America%2FBogota&windspeed=kmh&temperature=C`;
 
-  const response = await fetch(url, { next: { revalidate: 600 } });
+  const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Meteoblue HTTP ${response.status}`);
 
   const raw = await response.json();

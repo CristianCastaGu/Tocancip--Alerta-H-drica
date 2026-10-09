@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { collectWeather } from '@/lib/weather/collect';
-import { assessRisk, consensus, LEVEL_ORDER } from '@/lib/riskEngine';
+import { consensus, LEVEL_ORDER } from '@/lib/riskEngine';
+import { buildSnapshot } from '@/lib/alertSnapshot';
 import { sendWhatsAppAlert } from '@/lib/whatsapp';
 import prisma from '@/lib/prisma';
 import { AlertLevel, Thresholds } from '@/lib/types';
@@ -40,8 +41,11 @@ async function evaluate(req: NextRequest) {
     humidityPreventivo: threshold.humidityPreventivo,
   };
 
-  const risk = assessRisk(weather.current, thresholds, weather.rainStats);
-  const newLevel = risk.level;
+  const snapshot = buildSnapshot(weather, thresholds);
+  if (!snapshot) {
+    return NextResponse.json({ message: 'Ninguna fuente meteorológica disponible' }, { status: 503 });
+  }
+  const newLevel = snapshot.calculatedLevel;
 
   const lastAlert = await prisma.alert.findFirst({
     where: { createdAt: { gte: new Date(Date.now() - ALERT_VALIDITY_MS) } },
@@ -50,7 +54,7 @@ async function evaluate(req: NextRequest) {
   const lastLevel: AlertLevel = lastAlert?.level ?? 'INFORMATIVO';
 
   if (LEVEL_ORDER[newLevel] <= LEVEL_ORDER[lastLevel]) {
-    return NextResponse.json({ message: 'Sin escalada de riesgo', current: newLevel, iri: risk.iri.iri });
+    return NextResponse.json({ message: 'Sin escalada de riesgo', current: newLevel, iri: snapshot.iri });
   }
 
   const waResult = await sendWhatsAppAlert(newLevel, '', avg);
@@ -59,14 +63,17 @@ async function evaluate(req: NextRequest) {
     data: {
       level: newLevel,
       triggeredBy: 'auto',
-      message: `Activación automática — ${risk.reason}`,
+      message: `Activación automática — ${snapshot.reason}`,
       waStatus: waResult.success ? 'sent' : 'failed',
       waMessageId: waResult.messageId ?? null,
-      weatherData: { ...avg, iri: risk.iri.iri, rainStats: weather.rainStats ?? null } as object,
+      weatherData: {
+        ...snapshot,
+        ...(waResult.success ? {} : { waError: waResult.error ?? 'Error desconocido' }),
+      } as object,
     },
   });
 
-  return NextResponse.json({ alert, whatsapp: waResult, level: newLevel, iri: risk.iri.iri });
+  return NextResponse.json({ alert, whatsapp: waResult, level: newLevel, iri: snapshot.iri });
 }
 
 /* Vercel Cron invoca con GET; POST se conserva para disparos manuales o externos */
