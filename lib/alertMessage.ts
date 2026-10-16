@@ -29,7 +29,9 @@ function formatDate(date: Date): string {
 
 function rainRate(weather: Partial<WeatherData>): number | undefined {
   const p = weather.precipitation;
-  return typeof p === 'number' && Number.isFinite(p) ? p : undefined;
+  if (typeof p !== 'number' || !Number.isFinite(p)) return undefined;
+  /* Menos de 0,1 mm/h es traza: se trata como "no está lloviendo" para no decir "(0 mm por hora)" */
+  return p < 0.1 ? 0 : p;
 }
 
 function mmPerHour(value: number): string {

@@ -346,7 +346,8 @@ export default function WeatherMap() {
       </div>
 
       {/* Mapa */}
-      <div style={{ height: 520, position: 'relative' }}>
+      {/* isolation: los z-index internos de Leaflet (400+) no deben tapar modales ni menús */}
+      <div style={{ height: 520, position: 'relative', isolation: 'isolate' }}>
         <div ref={containerRef} style={{ height: '100%', width: '100%' }} />
 
         {/* Leyenda radar */}
