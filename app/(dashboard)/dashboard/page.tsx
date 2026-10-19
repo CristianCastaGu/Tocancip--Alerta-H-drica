@@ -42,7 +42,10 @@ export default function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [modalOpen, setModalOpen]   = useState(false);
+  /* Nivel realmente enviado desde la ventana (solo se fija al confirmar el envío) */
   const [manualLevel, setManualLevel] = useState<AlertLevel | null>(null);
+  /* Nivel con el que abre la ventana: el del botón pulsado */
+  const [modalLevel, setModalLevel] = useState<AlertLevel | null>(null);
   /* Umbrales vigentes de Configuración (BD): los mismos que usa el agente automático */
   const [thresholds, setThresholds] = useState<Thresholds>(DEFAULT_THRESHOLDS);
 
@@ -105,7 +108,7 @@ export default function DashboardPage() {
             Refrescar
           </button>
           {canAlert && (
-            <button onClick={() => { setManualLevel(null); setModalOpen(true); }}
+            <button onClick={() => { setModalLevel(null); setModalOpen(true); }}
               className="btn-primary flex items-center gap-2 text-sm py-2 px-3">
               <Bell className="w-4 h-4" />
               Activar alerta
@@ -159,7 +162,7 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-2 gap-2">
                     {ALERT_LEVELS.map((level) => (
                       <button key={level}
-                        onClick={() => { setManualLevel(level); setModalOpen(true); }}
+                        onClick={() => { setModalLevel(level); setModalOpen(true); }}
                         className="py-3 px-2 rounded-lg text-sm font-bold border transition-all hover:opacity-90 active:scale-95"
                         style={{
                           borderColor: LEVEL_COLORS[level],
@@ -196,7 +199,8 @@ export default function DashboardPage() {
       <AlertModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        onSuccess={() => setManualLevel(manualLevel ?? currentLevel)}
+        initialLevel={modalLevel}
+        onSuccess={(level) => setManualLevel(level)}
         weatherData={representative ?? {}}
       />
     </div>

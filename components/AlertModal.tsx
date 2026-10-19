@@ -10,7 +10,10 @@ import toast from 'react-hot-toast';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  /* Recibe el nivel que realmente se envió */
+  onSuccess?: (level: AlertLevel) => void;
+  /* Nivel con el que abre la ventana (el botón que se pulsó); por defecto, Preventivo */
+  initialLevel?: AlertLevel | null;
   weatherData: Partial<WeatherData>;
 }
 
@@ -22,11 +25,18 @@ const LEVEL_PREVIEW_IMAGES: Partial<Record<AlertLevel, string>> = {
   PREVENTIVO: '/whatsapp/preventivo.png',
 };
 
-export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: Props) {
-  const [selectedLevel, setSelectedLevel] = useState<AlertLevel>('PREVENTIVO');
+export default function AlertModal({ isOpen, onClose, onSuccess, initialLevel, weatherData }: Props) {
+  const [selectedLevel, setSelectedLevel] = useState<AlertLevel>(initialLevel ?? 'PREVENTIVO');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [includeImage, setIncludeImage] = useState(true);
+  const [wasOpen, setWasOpen] = useState(false);
+
+  /* Cada vez que se abre, parte del nivel del botón pulsado (no del último usado) */
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setSelectedLevel(initialLevel ?? 'PREVENTIVO');
+  }
 
   if (!isOpen) return null;
 
@@ -45,7 +55,7 @@ export default function AlertModal({ isOpen, onClose, onSuccess, weatherData }: 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Error al enviar alerta');
       toast.success(`Alerta ${LEVEL_LABELS[selectedLevel]} enviada correctamente`);
-      onSuccess?.();
+      onSuccess?.(selectedLevel);
       onClose();
       setMessage('');
     } catch (err) {
